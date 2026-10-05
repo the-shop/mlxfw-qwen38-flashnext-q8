@@ -111,6 +111,9 @@ Base model **Qwen Team, Alibaba** (`Qwen/Qwen3.8-Flash-Next`). Decensoring tool 
 Architecture support merged as PR **#27742** (**unslothai**); every measurement here ran on
 the closed PR **#27739** (**JJJYmmm**) — a closed PR is still someone's work, and it is the
 branch that produced and served these files.
+Stock upstream llama.cpp at the #27742 merge (`6c84c7d5`) was later verified to load the
+Q8_0 with `--no-repack` and match the fork's greedy output byte for byte (3 prompts);
+the speed figures remain fork-measured.
 
 Sibling release and the full provenance chain:
 <https://github.com/the-shop/qwen38-flashnext-hybrid-recipe>
