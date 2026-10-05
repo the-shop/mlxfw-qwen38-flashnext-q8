@@ -1,0 +1,7 @@
+[1791184007.772] HOLDING=60 GiB nonzero_probe=60/60 swap=100 MiB
+[1791184007.772] hold swap=900 (+800) swapouts=+777
+[1791184008.774] hold swap=900 (+800) swapouts=+777
+[1791184009.774] hold swap=900 (+800) swapouts=+777
+[1791184010.779] hold swap=900 (+800) swapouts=+777
+[1791184011.784] RELEASED (stopfile) swap=900 MiB
+[1791184011.785] DONE held=60 GiB swapouts=+777 swap=+800 MiB

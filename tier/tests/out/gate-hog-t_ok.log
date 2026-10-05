@@ -1,0 +1,8 @@
+[1791183949.654] baseline swap=100 MiB swapouts=0 target=60 GiB guard=+256 MiB
+[1791183949.654] HOLDING=60 GiB nonzero_probe=60/60 swap=100 MiB
+[1791183949.654] hold swap=100 (+0) swapouts=+0
+[1791183950.654] hold swap=100 (+0) swapouts=+0
+[1791183951.654] hold swap=100 (+0) swapouts=+0
+[1791183952.654] hold swap=100 (+0) swapouts=+0
+[1791183953.655] RELEASED (stopfile) swap=100 MiB
+[1791183953.655] DONE held=60 GiB swapouts=+0 swap=+0 MiB

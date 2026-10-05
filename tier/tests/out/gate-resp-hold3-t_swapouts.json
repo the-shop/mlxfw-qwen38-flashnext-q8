@@ -1,0 +1,1 @@
+{"choices": [{"finish_reason": "stop", "index": 0, "message": {"role": "assistant", "content": "stub answer"}}], "usage": {"completion_tokens": 2}, "timings": {"predicted_per_second": 1.0}}

@@ -1,0 +1,12 @@
+100.5	hog_holding
+101.0	decode_start_hold1
+101.5	decode_end_hold1
+102.0	decode_start_hold2
+102.5	decode_end_hold2
+103.0	decode_start_hold3
+103.5	decode_end_hold3
+104.0	decode_start_hold4
+104.5	decode_end_hold4
+105.0	decode_start_hold5
+105.5	decode_end_hold5
+119.0	gen_done
