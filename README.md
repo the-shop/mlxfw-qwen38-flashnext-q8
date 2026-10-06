@@ -6,11 +6,40 @@ tens of gigabytes of RAM free for other work. MLXFW = "for work".
 
 Weights: <https://huggingface.co/the-shop/MLXFW-Qwen3.8-Flash-Next-Heretic-Q8_0>
 
-Everything here was measured on the **closed llama.cpp PR #27739** (`JJJYmmm`, branch
-`add_qwen4exp` @ `dfa0c0f`) — that caveat travels with every number. Nothing was verified on
-upstream llama.cpp.
+The original results below were measured on the **closed llama.cpp PR #27739** (`JJJYmmm`,
+branch `add_qwen4exp` @ `dfa0c0f`). The 2026-10-06 update runs on upstream **llama.cpp v0.6.0**
+plus a one-line copy-mode patch, and is the recommended way to run it now.
 
-## The result
+## Run it today (llama.cpp v0.6.0, 2026-10-06)
+
+Best measured: **25.7 tok/s on varied prompts with 29 GiB wired** (typical 21-23 across
+measurement windows), copy mode + MTP, M5 Max 128 GiB with other RAM users stopped.
+
+```bash
+git clone -b mlxfw-copy-mode https://github.com/the-shop/llama.cpp && cd llama.cpp
+cmake -B build -DGGML_METAL=ON && cmake --build build -j --target llama-server
+hf download the-shop/MLXFW-Qwen3.8-Flash-Next-Heretic-Q8_0 --local-dir ~/mlxfw \
+  --include "q8-*.gguf" "mtp-Qwen3.8-Flash-Next-Heretic-Q8_0.gguf"
+LLAMA_DIR=$PWD MODEL_DIR=~/mlxfw ../mlxfw-qwen38-flashnext-q8/launch/run-v060.sh
+```
+
+What the flags do:
+
+- `LLAMA_GPU_NO_HOST_PTR=1` (the patch): the GPU copies its own tensors instead of wiring the
+  whole mmap range of each file. Dense-on-GPU went from Metal OOM at 69-92 GiB wired to a
+  4.85 GiB GPU buffer.
+- `-ngl 99 --n-cpu-moe 45`: all dense weights plus 3 expert layers on GPU, the other experts
+  stream from page cache. More GPU expert layers starves the cache and gets slower.
+- `--spec-type draft-mtp` with the Q8_0 MTP head, 2 drafts: +44% once experts are cached.
+  MTP hurts if experts stream from SSD.
+- `-ub 2048 --no-op-offload`: prefill 5 -> 31 tok/s on a 10k prompt.
+- `-t 12`: performance cores on M5 Max. 18 threads collapsed to 14 tok/s.
+
+Free RAM matters more than any flag: ~7 tok/s with other services holding ~40 GiB, 22-26 with
+them stopped. 256k context works (`CTX=262144`, +~9 GiB). Full tables and negative results:
+`docs/2026-10-06-v060-copy-mode-mtp.md`.
+
+## Original result (PR #27739 fork, 2026-10-04)
 
 | `-ngl` | tok/s | wired | RAM left free |
 |---|---|---|---|
