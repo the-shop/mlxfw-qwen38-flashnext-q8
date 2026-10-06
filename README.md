@@ -26,7 +26,7 @@ LLAMA_DIR=$PWD MODEL_DIR=~/mlxfw ../mlxfw-qwen38-flashnext-q8/launch/run-v060.sh
 What the flags do:
 
 - `LLAMA_GPU_NO_HOST_PTR=1` (the patch): the GPU copies its own tensors instead of wiring the
-  whole mmap range of each file. Dense-on-GPU went from Metal OOM at 69-92 GiB wired to a
+  whole mmap range of each file. Upstream PR: <https://github.com/ggml-org/llama.cpp/pull/30060>. Dense-on-GPU went from Metal OOM at 69-92 GiB wired to a
   4.85 GiB GPU buffer.
 - `-ngl 99 --n-cpu-moe 45`: all dense weights plus 3 expert layers on GPU, the other experts
   stream from page cache. More GPU expert layers starves the cache and gets slower.
