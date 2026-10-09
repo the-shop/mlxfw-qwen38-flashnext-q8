@@ -34,13 +34,14 @@ Run it:
 ```bash
 git clone -b q8-flash-next https://github.com/the-shop/TensorFold.git && cd TensorFold
 python -m pip install -e ".[ssd]" "huggingface_hub>=0.34"
-hf download trohrbaugh/Qwen3.8-Flash-Next-heretic --local-dir flashnext-bf16   # 360 GB BF16, MTP head included
-python tools/convert_flash_next_q8.py flashnext-bf16 flashnext-q8 --limit-gb 14  # 194 GB MLX 8-bit
-TENSORFOLD_MEMORY_LIMIT_GB=56 tensorfold serve flashnext-q8 --name bench \
-  --ssd-experts 40 --ple-on-ssd --context 16384 --no-thinking
+hf download the-shop/MLXFW-Qwen3.8-Flash-Next-Heretic-MLX-8bit --local-dir ~/mlxfw-q8   # 194 GB
+MODEL_DIR=~/mlxfw-q8 ../mlxfw-qwen38-flashnext-q8/launch/run-tensorfold.sh       # POOL=60 LIMIT=76 for the 60 GiB row
 ```
 
-- **Before you start:** you need Xcode Command Line Tools and about 560 GB of free SSD.
+To build the 8-bit checkpoint yourself, convert the 360 GB BF16 source with
+`python tools/convert_flash_next_q8.py <BF16 dir> flashnext-q8 --limit-gb 14`.
+
+- **Before you start:** you need Xcode Command Line Tools and about 200 GB of free SSD (about 560 GB if you convert the BF16 source yourself).
 - **Uncensored base:** to start from the original model instead, download `Qwen/Qwen3.8-Flash-Next`.
 - **More detail:** the full recipe covers context and memory trade-offs, a check that drafting doesn't change the
   tokens, and the opt-in prefetch and seed flags. It's at
