@@ -10,6 +10,42 @@ The original results below were measured on the **closed llama.cpp PR #27739** (
 branch `add_qwen4exp` @ `dfa0c0f`). The 2026-10-06 update runs on upstream **llama.cpp v0.6.0**
 plus a one-line copy-mode patch, and is the recommended way to run it now.
 
+## Faster: TensorFold 8-bit with an SSD expert pool (2026-10-09)
+
+The same model at 8-bit, run on [TensorFold](https://github.com/ashhart/TensorFold) instead of llama.cpp.
+The experts stay on the internal SSD, and a fixed-size pool in RAM holds the ones in use. This path
+doesn't depend on the page cache. It needs an M5 Mac.
+
+| Expert pool | New prompt, drafts on | Same prompt rerun | Prefill | Peak (MLX) |
+|---|---|---|---|---|
+| 40 GiB (default) | 15.6-18.8 tok/s | 21.3-21.7 tok/s | 168-241 tok/s | 52 GiB |
+| 60 GiB | 18.9-24.3 tok/s | 58.8 tok/s | 160-238 tok/s | 72 GiB |
+
+- **How it was measured:** two independent harnesses, with thinking off, temperature 0, replies of up to 128
+  tokens and a 16K context. Each value is a median of server-side decode speed. Drafted and serial replies had
+  identical tokens in every configuration.
+- **Background services:** the machine's other model servers and background jobs were stopped during the runs.
+- **Hit rate:** expert and n-gram reads bypass the page cache (`F_NOCACHE`). At 40 GiB the pool serves about 90%
+  of expert reads.
+- **Reruns:** at 60 GiB a whole reply's experts stay resident, which is why a rerun of the same prompt is so fast.
+
+Run it:
+
+```bash
+git clone -b q8-flash-next https://github.com/the-shop/TensorFold.git && cd TensorFold
+python -m pip install -e ".[ssd]" "huggingface_hub>=0.34"
+hf download trohrbaugh/Qwen3.8-Flash-Next-heretic --local-dir flashnext-bf16   # 360 GB BF16, MTP head included
+python tools/convert_flash_next_q8.py flashnext-bf16 flashnext-q8 --limit-gb 14  # 194 GB MLX 8-bit
+TENSORFOLD_MEMORY_LIMIT_GB=56 tensorfold serve flashnext-q8 --name bench \
+  --ssd-experts 40 --ple-on-ssd --context 16384 --no-thinking
+```
+
+- **Before you start:** you need Xcode Command Line Tools and about 560 GB of free SSD.
+- **Uncensored base:** to start from the original model instead, download `Qwen/Qwen3.8-Flash-Next`.
+- **More detail:** the full recipe covers context and memory trade-offs, a check that drafting doesn't change the
+  tokens, and the opt-in prefetch and seed flags. It's at
+  [`docs/recipes/qwen3.8-flash-next.md`](https://github.com/the-shop/TensorFold/blob/q8-flash-next/docs/recipes/qwen3.8-flash-next.md#running-it-on-a-128-gb-m5-mac).
+
 ## Run it today (llama.cpp v0.6.0, 2026-10-06)
 
 Best measured: **25.7 tok/s on varied prompts with 29 GiB wired** (typical 21-23 across
@@ -36,7 +72,9 @@ What the flags do:
 - `-t 12`: performance cores on M5 Max. 18 threads collapsed to 14 tok/s.
 
 Free RAM matters more than any flag: ~7 tok/s with other services holding ~40 GiB, 22-26 with
-them stopped. 256k context works (`CTX=262144`, +~9 GiB). Full tables and negative results:
+them stopped. These figures need the page cache to hold most experts. From a cold cache, copy mode with
+`--n-cpu-moe 45` measured 2.3 tok/s on 2026-10-07 in two independent harnesses, which is why the TensorFold
+path above is faster for new prompts. 256k context works (`CTX=262144`, +~9 GiB). Full tables and negative results:
 `docs/2026-10-06-v060-copy-mode-mtp.md`.
 
 ## Original result (PR #27739 fork, 2026-10-04)
@@ -136,7 +174,8 @@ corrections made along the way.
 
 Base model **Qwen Team, Alibaba** (`Qwen/Qwen3.8-Flash-Next`). Decensoring tool **p-e-w**
 (`heretic`), fork **timrohrbaugh** v1.3.0+custom seed `2185752647`, weights **trohrbaugh**
-(`trohrbaugh/Qwen3.8-Flash-Next-heretic`). Runtime **ggml-org** and llama.cpp contributors.
+(`trohrbaugh/Qwen3.8-Flash-Next-heretic`). Runtime **ggml-org** and llama.cpp contributors. TensorFold runtime **ashhart**
+(`ashhart/TensorFold`).
 Architecture support merged as PR **#27742** (**unslothai**); every measurement here ran on
 the closed PR **#27739** (**JJJYmmm**) — a closed PR is still someone's work, and it is the
 branch that produced and served these files.
