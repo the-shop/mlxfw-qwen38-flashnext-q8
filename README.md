@@ -27,12 +27,12 @@ ones in use, so this path doesn't depend on the page cache. It needs an M5 Mac w
 | 40 / 56 | Python loop | 16.9-20.0 tok/s | 23.4 tok/s | 183-244 tok/s | 52 GiB | 90% |
 | **60 / 76 (recommended)** | **native (default)** | **23.0-27.2 tok/s** | **58.8 tok/s** | **190-255 tok/s** | **72 GiB** | **98%** |
 | 60 / 76 | Python loop | 20.7-24.9 tok/s | 59.5 tok/s | 176-240 tok/s | 72 GiB | 98% |
-| 70 / 86 (no gain) | native (default) | 22.5-28.6 tok/s | 60.0 tok/s | 172-217 tok/s | 82 GiB | 98% |
+| 70 / 86 | native (default) | 22.5-28.6 tok/s | 60.0 tok/s | 172-217 tok/s | 82 GiB | 98% |
 | 70 / 86 | Python loop | 22.0-27.1 tok/s | 58.1 tok/s | 160-195 tok/s | 82 GiB | 98% |
 
 - **Which pool:** 60 GiB with `LIMIT=76` if you can give the server about 75 GiB. 40 GiB with
   `LIMIT=56` leaves about 75 GiB free for other work. On new prompts 60 GiB is 22-24% faster than
-  40 GiB. 70 GiB gave no gain over 60, with 9-15% lower prefill, and needs 10 GiB more.
+  40 GiB. 70 GiB (native): decode -2% (harness B) / +5% (harness A) vs 60 GiB, prefill 9-15% lower, and it needs 10 GiB more.
 - **Reruns:** at 60 and 70 GiB a whole reply's experts stay resident, so a repeat of the same prompt
   runs at about 59 tok/s. At 40 GiB a repeat reaches 25 tok/s.
 - **Pool hits:** the share of expert reads served from the pool: 90% at 40 GiB, 98% at 60 and 70 GiB.
@@ -45,7 +45,7 @@ ones in use, so this path doesn't depend on the page cache. It needs an M5 Mac w
 - **Did not help:** 16 reader threads (`TENSORFOLD_POOL_THREADS=16`) raised prefill 4-9% at 40 and
   60 GiB but not at 70, with decode within ±3% at 40 and 60 GiB and ±4% at 70, except harness B
   serial decode at 40 GiB (-10%), so the default stays 8. The contiguous expert pack
-  (`TENSORFOLD_EXPERT_PACK=1`) decoded 16-23% slower at 40 and 60 GiB and is opt-in and experimental.
+  (`TENSORFOLD_EXPERT_PACK=1`) decoded 16-23% slower at 40 and 60 GiB (new prompts with drafts)[^pack40] and is opt-in and experimental.
 - **Identical tokens:** output tokens were identical across all 12 measured configurations (three pool
   sizes x native, Python loop, 16 threads and pack), with drafts on and off.
 - **How it was measured:** M5 Max, 128 GB, internal SSD, `--context 16384`, `--ple-on-ssd`,
@@ -239,7 +239,19 @@ numerically equivalent, and the 2026-10-04 speed figures apply to the #27739 bra
 Sibling release and the full provenance chain:
 <https://github.com/the-shop/qwen38-flashnext-hybrid-recipe>
 
-Licence: the scripts and code in this repository are under the MIT License
-([`LICENSE-CODE`](LICENSE-CODE)). The model weights are under the Qwen Community License 1.0
-([`LICENSE`](LICENSE)), inherited unchanged. Clause 2 — commercial
-Model-as-a-Service serving needs a separate licence from Qwen, obtained beforehand.
+Licence: the model weights are under the Qwen Community License 1.0 ([`LICENSE`](LICENSE)),
+inherited unchanged; the full text governs and this summary does not.
+
+- **Clause 1:** keep the copyright and permission notice in all copies or substantial portions. If
+  the model or any derivative is used in a commercial product or service with more than 100,000,000
+  monthly active users or more than US$20,000,000 (or equivalent) in monthly revenue, the model name
+  must be prominently displayed in that product's user interface.
+- **Clause 2:** if you or any of your affiliates run a Model as a Service or AI Work Assistant
+  business, you need a separate licence from Qwen before using the model or its derivatives for any
+  commercial purpose. Internal use is exempt only while it does not make the model, its outputs or
+  its underlying capabilities available to any third party.
+
+The scripts and code in this repository are under the MIT License ([`LICENSE-CODE`](LICENSE-CODE)).
+
+[^pack40]: The 40 GiB harness-A pack values were measured in an earlier window on 2026-10-10;
+    every other value comes from two later windows the same day.

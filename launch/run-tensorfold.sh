@@ -8,7 +8,7 @@
 #   40    56     16384   18.8-22.0 tok/s 198-263 tok/s  52 GiB      90%   light; leaves ~75 GiB free
 #   40    62     65536   n/a             n/a            n/a         n/a   longer chats; prompts over ~55K tokens re-prefill each turn
 #   60    76     16384   23.0-27.2 tok/s 190-255 tok/s  72 GiB      98%   recommended (default); reruns ~59 tok/s
-#   70    86     16384   22.5-28.6 tok/s 172-217 tok/s  82 GiB      98%   no gain over 60; needs 10 GiB more
+#   70    86     16384   22.5-28.6 tok/s 172-217 tok/s  82 GiB      98%   vs 60: decode -2% (B) / +5% (A), prefill 9-15% lower; needs 10 GiB more
 #
 # TENSORFOLD_POOL_NATIVE=0 selects the slower Python pool loop; output tokens are identical either way.
 set -eu
