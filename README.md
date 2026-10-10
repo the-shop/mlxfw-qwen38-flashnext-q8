@@ -239,5 +239,7 @@ numerically equivalent, and the 2026-10-04 speed figures apply to the #27739 bra
 Sibling release and the full provenance chain:
 <https://github.com/the-shop/qwen38-flashnext-hybrid-recipe>
 
-Licence: Qwen Community License 1.0, inherited unchanged. Clause 2 — commercial
+Licence: the scripts and code in this repository are under the MIT License
+([`LICENSE-CODE`](LICENSE-CODE)). The model weights are under the Qwen Community License 1.0
+([`LICENSE`](LICENSE)), inherited unchanged. Clause 2 — commercial
 Model-as-a-Service serving needs a separate licence from Qwen, obtained beforehand.

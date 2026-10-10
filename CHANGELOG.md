@@ -14,6 +14,8 @@
 - Corrections in `docs/MEASUREMENTS.md`: the QD1 storage ceiling uses the mincore-verified figures
   (5.16 GB/s external, 8.28 GB/s internal) instead of 6.70 GB/s; the n-gram table page-cache
   figure states 0.19 GiB in the measured runs and 0.03-0.47 GiB across all probes.
+- Licensing: scripts and code are under the MIT License (`LICENSE-CODE`); the model weights stay
+  under the Qwen Community License 1.0 (`LICENSE`).
 
 ## v0.1.0 — 2026-10-10
 
