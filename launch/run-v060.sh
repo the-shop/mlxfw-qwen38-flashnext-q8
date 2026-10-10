@@ -1,6 +1,7 @@
 #!/bin/bash
 # MLXFW Q8_0 on llama.cpp v0.6.0 + copy-mode patch (the-shop/llama.cpp, branch mlxfw-copy-mode).
-# Best measured varied-prompt config on a 128 GiB M5 Max (2026-10-06): 22-26 tok/s with other RAM users stopped.
+# Needs a warm page cache. This command measured 22.96 tok/s on varied prompts with 24 GiB wired on a 128 GiB M5 Max
+# (2026-10-06, other RAM users stopped; best seen 25.7 at --n-cpu-moe 44). From a cold page cache: 2.3 tok/s.
 set -eu
 : "${LLAMA_DIR:?set LLAMA_DIR to your llama.cpp build (the-shop/llama.cpp @ mlxfw-copy-mode)}"
 : "${MODEL_DIR:?set MODEL_DIR to the folder with q8-0000x-of-00005.gguf and the MTP head}"
