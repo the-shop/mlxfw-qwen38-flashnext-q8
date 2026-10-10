@@ -17,7 +17,7 @@ page cache), and the original GPU/CPU tiering study on the closed llama.cpp PR #
 ## Recommended: TensorFold 8-bit with an SSD expert pool (2026-10-10)
 
 The same model at 8-bit, run on [TensorFold](https://github.com/the-shop/TensorFold/tree/v0.1.0)
-(the-shop's fork of [ashhart/TensorFold](https://github.com/ashhart/TensorFold), release v0.1.0)
+(the-shop's fork of [ashhart/TensorFold](https://github.com/ashhart/TensorFold) v0.3.6.3, release v0.1.0)
 instead of llama.cpp. The experts stay on the internal SSD and a fixed-size pool in RAM holds the
 ones in use, so this path doesn't depend on the page cache. It needs an M5 Mac with 128 GB.
 
@@ -221,7 +221,8 @@ corrections made along the way.
   **unslothai** (merged).
 - TensorFold runtime: [**ashhart/TensorFold**](https://github.com/ashhart/TensorFold), built on
   [**MLX**](https://github.com/ml-explore/mlx) by ml-explore. The SSD expert pool, the native pool
-  server and the 8-bit converter are the-shop's changes on top of ashhart/TensorFold, released as
+  server and the 8-bit converter are the-shop's changes on top of ashhart/TensorFold
+  [v0.3.6.3](https://github.com/ashhart/TensorFold/tree/v0.3.6.3) (MIT), released as
   [the-shop/TensorFold v0.1.0](https://github.com/the-shop/TensorFold/tree/v0.1.0).
 
 Which code produced which numbers: the 2026-10-04 tiering study ran on the closed PR #27739 branch
