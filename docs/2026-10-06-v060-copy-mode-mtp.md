@@ -71,7 +71,9 @@ Same prompt repeated (all touched experts cached): copy `--cpu-moe` 22.4-23.8 to
 - More GPU layers is slower past a point. Wired memory and page cache come from the same RAM,
   so pinning more expert layers starves the cache for the rest.
 - The model needs ~130 GiB to keep every expert resident, slightly more than the machine has.
-  The 22-26 tok/s band is the varied-prompt ceiling on 128 GiB.
+  The 22-26 tok/s band is the varied-prompt ceiling of this page-cache path on 128 GiB. It is not
+  a ceiling for the machine: the 2026-10-10 TensorFold SSD expert pool measured 23.0-27.2 tok/s on
+  new prompts from a cold cache with a 60 GiB pool (see the README).
 
 ## Prefill
 
