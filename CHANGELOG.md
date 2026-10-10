@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- Corrections in `README.md`: the model has 177B parameters in total, including a ~51B n-gram
+  table (previously stated as 122B); 16 reader threads raised prefill 4-9% at 40 and 60 GiB
+  (previously 4-11%) with decode within ±3% there and ±4% at 70 GiB, except harness B serial decode
+  at 40 GiB (-10%) (previously "within ±4%"); at 70 GiB the native pool server decodes 2-6% and
+  prefills 8-11% faster than the Python loop (previously 2-6% for both); 70 GiB prefill is 9-15%
+  below 60 GiB (previously 10-15%).
+- Attribution: SSD expert streaming is ashhart's work in TensorFold 0.3.6; the-shop's changes are
+  the 8-bit kernels and converter, the native pool server and the opt-in prefetch, seed and
+  expert-pack flags.
+- Corrections in `docs/MEASUREMENTS.md`: the QD1 storage ceiling uses the mincore-verified figures
+  (5.16 GB/s external, 8.28 GB/s internal) instead of 6.70 GB/s; the n-gram table page-cache
+  figure states 0.19 GiB in the measured runs and 0.03-0.47 GiB across all probes.
+
 ## v0.1.0 — 2026-10-10
 
 First tagged release.

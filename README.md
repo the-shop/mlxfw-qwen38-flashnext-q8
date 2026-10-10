@@ -1,8 +1,8 @@
 # MLXFW — running a 188 GB Q8 MoE on one Apple Silicon Mac
 
-Measurement harness and findings from fitting **Qwen3.8-Flash-Next** at 8 bits (122B total /
-10B active, 512 experts) onto a single M5 Max with 128 GiB of unified memory, while keeping
-tens of gigabytes of RAM free for other work. MLXFW = "for work".
+Measurement harness and findings from fitting **Qwen3.8-Flash-Next** at 8 bits (177B total
+including a ~51B n-gram table, 10B active, 512 experts) onto a single M5 Max with 128 GiB of
+unified memory, while keeping tens of gigabytes of RAM free for other work. MLXFW = "for work".
 
 Weights:
 
@@ -32,7 +32,7 @@ ones in use, so this path doesn't depend on the page cache. It needs an M5 Mac w
 
 - **Which pool:** 60 GiB with `LIMIT=76` if you can give the server about 75 GiB. 40 GiB with
   `LIMIT=56` leaves about 75 GiB free for other work. On new prompts 60 GiB is 22-24% faster than
-  40 GiB. 70 GiB gave no gain over 60, with 10-15% lower prefill, and needs 10 GiB more.
+  40 GiB. 70 GiB gave no gain over 60, with 9-15% lower prefill, and needs 10 GiB more.
 - **Reruns:** at 60 and 70 GiB a whole reply's experts stay resident, so a repeat of the same prompt
   runs at about 59 tok/s. At 40 GiB a repeat reaches 25 tok/s.
 - **Pool hits:** the share of expert reads served from the pool: 90% at 40 GiB, 98% at 60 and 70 GiB.
@@ -40,9 +40,11 @@ ones in use, so this path doesn't depend on the page cache. It needs an M5 Mac w
   page cache.
 - **Native pool server (default):** a C++ thread in TensorFold's host-sync extension serves each
   layer's expert reads. Against the Python loop (`TENSORFOLD_POOL_NATIVE=0`) it decodes 9-11% faster
-  with drafts and prefills 6-8% faster at 40 and 60 GiB, 2-6% at 70 GiB. Output tokens are identical.
-- **Did not help:** 16 reader threads (`TENSORFOLD_POOL_THREADS=16`) raised prefill 4-11% at 40 and
-  60 GiB but not at 70, with decode within ±4%, so the default stays 8. The contiguous expert pack
+  with drafts and prefills 6-8% faster at 40 and 60 GiB; at 70 GiB decode is 2-6% faster and prefill
+  8-11% faster. Output tokens are identical.
+- **Did not help:** 16 reader threads (`TENSORFOLD_POOL_THREADS=16`) raised prefill 4-9% at 40 and
+  60 GiB but not at 70, with decode within ±3% at 40 and 60 GiB and ±4% at 70, except harness B
+  serial decode at 40 GiB (-10%), so the default stays 8. The contiguous expert pack
   (`TENSORFOLD_EXPERT_PACK=1`) decoded 16-23% slower at 40 and 60 GiB and is opt-in and experimental.
 - **Identical tokens:** output tokens were identical across all 12 measured configurations (three pool
   sizes x native, Python loop, 16 threads and pack), with drafts on and off.
@@ -188,7 +190,7 @@ swapout reader to 0 when the field was missing. Both would have reported clean r
 | MTLIO / sparse heaps | no gain | 12.0–13.5 GB/s matches the existing read path, pollutes page cache, placement-sparse is Private-only so no CPU fallback |
 | `GGML_METAL_NO_RESIDENCY=1` | no-op | 45.1 vs 45.2 GiB wired; wiring comes from `newBufferWithBytesNoCopy`, not residency sets |
 | speculative decoding on the #27739 branch | no gain there | 20.73 / 20.84 / 20.68 at draft depth 4 / 8 / 16 against a 20.62 baseline. Later, MTP drafting on llama.cpp v0.6.0 gave +44% with experts cached (see above) |
-| suppressing n-gram readahead | premise false | the 50 GB table holds 0.19 GiB of page cache, not the 3–7 GiB predicted. Patch written, built, measured, no change |
+| suppressing n-gram readahead | premise false | the 50 GB table holds 0.19 GiB of page cache in the measured runs (0.03–0.47 GiB across all probes), not the 3–7 GiB predicted. Patch written, built, measured, no change |
 | weights on internal NVMe | ~9%, unreplicated | internal is 1.91× faster (13.52 vs 7.08 GB/s) yet gave only +9% at a 30 GiB hold, n=1. mmap faulting caps at ~1.5 GB/s per thread, so the fault path is the ceiling, not the device |
 
 ## Measuring storage correctly
@@ -220,10 +222,11 @@ corrections made along the way.
   (closed) and [PR #27742](https://github.com/ggml-org/llama.cpp/pull/27742) by Daniel Han of
   **unslothai** (merged).
 - TensorFold runtime: [**ashhart/TensorFold**](https://github.com/ashhart/TensorFold), built on
-  [**MLX**](https://github.com/ml-explore/mlx) by ml-explore. The SSD expert pool, the native pool
-  server and the 8-bit converter are the-shop's changes on top of ashhart/TensorFold
-  [v0.3.6.3](https://github.com/ashhart/TensorFold/tree/v0.3.6.3) (MIT), released as
-  [the-shop/TensorFold v0.1.0](https://github.com/the-shop/TensorFold/tree/v0.1.0).
+  [**MLX**](https://github.com/ml-explore/mlx) by ml-explore. SSD expert streaming is ashhart's work,
+  introduced in TensorFold 0.3.6. the-shop's changes on top of ashhart/TensorFold
+  [v0.3.6.3](https://github.com/ashhart/TensorFold/tree/v0.3.6.3) (MIT) are the 8-bit kernels and
+  converter, the native C++ pool server, and the opt-in prefetch, seed and expert-pack flags,
+  released as [the-shop/TensorFold v0.1.0](https://github.com/the-shop/TensorFold/tree/v0.1.0).
 
 Which code produced which numbers: the 2026-10-04 tiering study ran on the closed PR #27739 branch
 (`add_qwen4exp` @ `dfa0c0f`), which produced and served the GGUF files; a closed PR is still someone's

@@ -61,13 +61,14 @@ closed_paths[7]{path,verdict,evidence}:
   GGML_METAL_NO_RESIDENCY,NO-OP,"wired 45.1 (on) vs 45.2 (off) GiB. Wiring comes from newBufferWithBytesNoCopy, not residency sets."
   speculative decoding (PR #27739 branch),NO GAIN THERE,"20.73 / 20.84 / 20.68 at draft depth 4 / 8 / 16 vs 20.62-20.80 baseline. Later superseded: MTP drafting on llama.cpp v0.6.0 gave +44% with experts cached (docs/2026-10-06-v060-copy-mode-mtp.md)."
   internal-disk relocation,~9% AT BEST (unreplicated),"CORRECTED: the 22.06 GB/s @ QD8 external figure was a page-cache artifact -- F_NOCACHE does not evict already-resident pages, so the benchmark timed RAM. With offsets verified non-resident via mincore: external saturates at 7.08 GB/s, internal NVMe at 13.52 (1.91x). Bandwidth arithmetic then predicted +24-53% under memory pressure; the weights were copied to internal and measured: 20.78 vs 20.45 tok/s unheld (no change, as predicted) and 5.98 vs 5.47 at 30 GiB held (+9%, n=1). Three replication attempts VOID (hog ABORT_GUARD_HOLD, swapfile exhausted at 8.1/9.2 GB after a day of testing). Why the projection failed: llama.cpp faults weights in via mmap at ~1.5 GB/s per thread, so the FAULT PATH is the ceiling, not the device; a 1.91x faster device leaves it untouched. Same mechanism as the prefetch no-op."
-  LLAMA_MMAP_RANDOM (PLE readahead),NO-OP; PREMISE FALSE,"patch built and measured: 20.78 stock vs 20.72 patched. mincore measures the PLE at 0.03-0.47 GiB of page cache, not the predicted 3-7 GiB, so there is nothing to reclaim. Expert shard holds ~32 GiB resident -- that is the real consumer."
+  LLAMA_MMAP_RANDOM (PLE readahead),NO-OP; PREMISE FALSE,"patch built and measured: 20.78 stock vs 20.72 patched. mincore measures the PLE at 0.19 GiB of page cache in both measured runs (0.03-0.47 GiB across all probes, 0.47 in an aborted 30 GiB-hold run), not the predicted 3-7 GiB, so there is nothing to reclaim. Expert shard holds ~32 GiB resident -- that is the real consumer."
 
-ceilings[5]{limit,measured,tok_s_cap}:
+ceilings[6]{limit,measured,tok_s_cap}:
   CPU RAM read (12 threads),235 GB/s,122
   SSD random 3 MiB saturated (external TBT5),7.08 GB/s,3.67
   SSD random 3 MiB saturated (internal NVMe),13.52 GB/s,7.0
-  SSD random 3 MiB QD1,6.70 GB/s,3.47
+  SSD random 3 MiB QD1 (external TBT5),5.16 GB/s,2.67
+  SSD random 3 MiB QD1 (internal NVMe),8.28 GB/s,4.29
   mmap page-fault path,~1.47 GB/s per stream,~0.8 per thread
 
 threads:
@@ -76,8 +77,9 @@ threads:
   cause: "even work split + barrier per layer; with every core busy, the slowest threads become stragglers the others wait on"
   regime_dependent: "under memory pressure MORE threads DO help (2.80 -> 4.22) because they buy I/O fault concurrency, not compute"
 
-corrections_made[4]:
+corrections_made[5]:
   - "maxBufferLength 80.64 GiB is NOT a failure threshold (ggml splits into views). An earlier span.py rejected valid configs, and a false warning nearly went into a public model card; an independent run falsified it empirically."
   - "All early tiering scripts omitted --chat-template-kwargs enable_thinking:false, so content was empty in 6 of 8 responses. The empty counter was wrongly dismissed as a parser artifact. Relative curve survives (identical deterministic workload, ntok=512 every row); correctness claim did not."
   - "A local tree used to inspect PR #27742 was called 'master' when no master checkout existed. Actual master has a full qwen4exp MTP implementation. The correct report was 'cannot verify'."
   - "A 3.86 tok/s storage ceiling was reported from a QD1 benchmark, although a measured 4.22 tok/s had already exceeded it. The QD8 figure first used to correct it (22.06 GB/s) was itself a page-cache artifact; see internal-disk relocation above."
+  - "The QD1 ceiling was first listed as 6.70 GB/s (3.47 tok/s). That figure came from the same benchmark run as the 22.06 GB/s QD8 page-cache artifact. With offsets verified non-resident via mincore, QD1 is 5.16 GB/s external and 8.28 GB/s internal."
