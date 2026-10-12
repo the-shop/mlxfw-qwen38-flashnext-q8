@@ -9,12 +9,88 @@ Weights:
 - MLX 8-bit, for TensorFold (recommended): <https://huggingface.co/the-shop/MLXFW-Qwen3.8-Flash-Next-Heretic-MLX-8bit>
 - GGUF Q8_0, for llama.cpp: <https://huggingface.co/the-shop/MLXFW-Qwen3.8-Flash-Next-Heretic-Q8_0>
 
-Three generations of results are below, newest first: TensorFold with an SSD expert pool
-(2026-10-10, recommended), llama.cpp v0.6.0 with a copy-mode patch (2026-10-06, needs a warm
-page cache), and the original GPU/CPU tiering study on the closed llama.cpp PR #27739 branch
-(2026-10-04).
+Four generations of results are below, newest first: TensorFold v0.3.0 with layer-major prefill
+(2026-10-12, recommended), TensorFold v0.1.0 with an SSD expert pool (2026-10-10, pool sizes),
+llama.cpp v0.6.0 with a copy-mode patch (2026-10-06, needs a warm page cache), and the original
+GPU/CPU tiering study on the closed llama.cpp PR #27739 branch (2026-10-04).
 
-## Recommended: TensorFold 8-bit with an SSD expert pool (2026-10-10)
+## Recommended: TensorFold v0.3.0, long prompts (2026-10-12)
+
+[the-shop/TensorFold v0.3.0](https://github.com/the-shop/TensorFold/tree/v0.3.0) changes how the SSD
+expert pool reads and prefills; output tokens are unchanged:
+
+- **Layer-major prefill (`TF_PREFILL_LAYER_MAJOR=1`, off by default in TensorFold, on in
+  `launch/run-tensorfold.sh`):** prompt chunks run in groups, each layer over every chunk of the group
+  before the next layer, so the expert window is filled once per layer a group instead of once per layer
+  a chunk. The cold-prefill figures below were measured with it on; cold prefill with TensorFold's
+  defaults (layer-major off) was not measured.
+- **Page-cache-safe expert reads (on by default, `TENSORFOLD_POOL_ALIGNED_READS=0` turns them off):**
+  expert reads at unaligned file offsets no longer leave expert bytes in the page cache.
+- **Expert window reuse (on by default, `TENSORFOLD_POOL_WINDOW_REUSE=0` turns it off).**
+
+Measured 2026-10-12 against TensorFold v0.2.0 with the same flags (`POOL=60`, `LIMIT=84`,
+`CTX=77824`, `--parallel 1 --persist-turns --checkpoint-last-user`); each figure is the range over
+two runs per build:
+
+| Request | Prompt / cached tokens | v0.2.0 time to first token | v0.3.0 time to first token |
+|---|---|---|---|
+| New 24K-token conversation, cold | 24,015 / 0 | 292.0-323.3 s | **33.3-38.8 s** |
+| Same, different first system line, cold | 24,046 / 0 | 314.0-323.5 s | **31.8-37.8 s** |
+| Next turn, same warm server | 21,889 / 21,766 | 5.25-5.43 s | **2.85-2.90 s** |
+| Next turn, same warm server | 24,011 / 23,814 | 6.12-6.88 s | **3.27-3.44 s** |
+| Next turn, same warm server | 24,006 / 23,814 | 5.80-6.57 s | **2.86-3.06 s** |
+| Agent turn, 1,467 new tokens | 25,281 / 23,814 | 27.2-29.9 s | **7.26-8.07 s** |
+| Agent turn, 648 new tokens | 25,403 / 24,755 | 15.8-16.6 s | **4.84-5.01 s** |
+| Agent turn, 245 new tokens | 25,467 / 25,222 | 7.41-8.77 s | **2.76-2.91 s** |
+
+- **Expert reads:** the cold 24,015-token prompt read 135.9 GB of experts from the SSD on v0.3.0
+  and 1,452.1 GB on v0.2.0.
+- **Next turns:** all requests in a run went to one server, so the next turns ran on a warm server
+  right after the two cold prompts. On a freshly started server that resumed the session from disk,
+  the first 21,889-token turn took 4.85 s on v0.3.0 (one run, separate harness).
+- **Decode:** flat to +19% on the 256-token agent turns (medians 15.0, 23.4 and 22.9 tok/s on v0.3.0
+  against 15.0, 19.7 and 21.6 tok/s on v0.2.0). Decode figures on the 32-token replies are dominated
+  by draft acceptance and pool warmth and are not quoted.
+- **Memory:** peak process footprint 87.9 GB (81.8 GiB) on v0.3.0 and 87.1 GB on v0.2.0, 2.3 GB under
+  the 90.19 GB (84 GiB) budget. After loading, the server's footprint was 73.8 GB.
+- **Page cache:** after the cold prompt, about 25 MB of the expert files stayed in the page cache on
+  v0.3.0 and about 18 GB on v0.2.0. About 8.1 GB of the model's other files (not experts) stayed cached
+  on v0.3.0.
+- **Identical tokens:** all 32 replies (8 requests, 2 runs, 2 builds) had the same output tokens on
+  both builds, and the 28 replies with a reference reply matched it. A second, independent harness
+  reproduced the v0.3.0 output tokens.
+- **How it was measured:** M5 Max, 128 GB, internal SSD, `--ssd-experts 60 --ple-on-ssd`,
+  `TENSORFOLD_MEMORY_LIMIT_GB=84`, `--context 77824`, `TF_PREFILL_LAYER_MAJOR=1` (no effect on
+  v0.2.0), agent-style requests with 20 tools and thinking on, temperature 0, replies of 32 tokens
+  (256 for the agent turns), server started without `--no-thinking`. A fresh server and fresh prompt
+  and session snapshot directories for every run, model files evicted from the page cache before each
+  start, builds run in alternating order. Two other model servers (about 10 GB) and a VM (about 6 GB)
+  ran during both builds; swap stayed at 7.3-8.2 GB. Times are server-side time to first token.
+- **First start:** the host-sync extension is rebuilt (needs Xcode Command Line Tools), and prompt
+  snapshots saved by v0.2.0 are not loaded, so a conversation saved by v0.2.0 starts with a cold prefill.
+
+Run it from a fresh clone. You need Xcode Command Line Tools, Python 3.11 or later as `python3`,
+and about 200 GB of free SSD:
+
+```bash
+git clone https://github.com/the-shop/mlxfw-qwen38-flashnext-q8.git
+git clone -b v0.3.0 https://github.com/the-shop/TensorFold.git && cd TensorFold
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e ".[ssd]" "huggingface_hub>=0.34"
+hf download the-shop/MLXFW-Qwen3.8-Flash-Next-Heretic-MLX-8bit --local-dir ~/mlxfw-q8   # 194 GB
+POOL=60 LIMIT=76 MODEL_DIR=~/mlxfw-q8 ../mlxfw-qwen38-flashnext-q8/launch/run-tensorfold.sh
+```
+
+For the long-prompt setup measured above:
+
+```bash
+POOL=60 LIMIT=84 CTX=77824 MODEL_DIR=~/mlxfw-q8 ../mlxfw-qwen38-flashnext-q8/launch/run-tensorfold.sh \
+  --parallel 1 --persist-turns --checkpoint-last-user
+```
+
+`TF_PREFILL_LAYER_MAJOR=0` turns layer-major prefill off.
+
+## TensorFold v0.1.0 with an SSD expert pool: pool sizes (2026-10-10)
 
 The same model at 8-bit, run on [TensorFold](https://github.com/the-shop/TensorFold/tree/v0.1.0)
 (the-shop's fork of [ashhart/TensorFold](https://github.com/ashhart/TensorFold) v0.3.6.3, release v0.1.0)
@@ -57,19 +133,8 @@ ones in use, so this path doesn't depend on the page cache. It needs an M5 Mac w
   harness A runs 2-5. Prefill ranges are harness B (2,475-token prompt) to harness A (3,381-token
   prompt).
 
-Run it from a fresh clone. You need Xcode Command Line Tools, Python 3.11 or later as `python3`,
-and about 200 GB of free SSD:
-
-```bash
-git clone https://github.com/the-shop/mlxfw-qwen38-flashnext-q8.git
-git clone -b v0.1.0 https://github.com/the-shop/TensorFold.git && cd TensorFold
-python3 -m venv .venv && . .venv/bin/activate
-pip install -e ".[ssd]" "huggingface_hub>=0.34"
-hf download the-shop/MLXFW-Qwen3.8-Flash-Next-Heretic-MLX-8bit --local-dir ~/mlxfw-q8   # 194 GB
-POOL=60 LIMIT=76 MODEL_DIR=~/mlxfw-q8 ../mlxfw-qwen38-flashnext-q8/launch/run-tensorfold.sh
-```
-
-Use `POOL=40 LIMIT=56` to leave more RAM free. The first start builds the host-sync extension with
+These figures were measured on v0.1.0, with 16K context and short prompts; the run commands in the
+section above apply. Use `POOL=40 LIMIT=56` to leave more RAM free. The first start builds the host-sync extension with
 cmake and nanobind. The server listens on `127.0.0.1:8131`; `curl -s 127.0.0.1:8131/health` shows
 `"native": 1` under `experts` when the native pool server is in use. A larger `LIMIT` buys context:
 with a 40 GiB pool, `LIMIT=62` starts and serves `CTX=65536`.
@@ -80,7 +145,7 @@ from the TensorFold checkout with
 original, non-decensored model, download `Qwen/Qwen3.8-Flash-Next` as the BF16 source. The full
 recipe covers context and memory trade-offs, the token-identity check for drafting, and the opt-in
 prefetch and seed flags:
-[`docs/recipes/qwen3.8-flash-next.md`](https://github.com/the-shop/TensorFold/blob/v0.1.0/docs/recipes/qwen3.8-flash-next.md#running-it-on-a-128-gb-m5-mac).
+[`docs/recipes/qwen3.8-flash-next.md`](https://github.com/the-shop/TensorFold/blob/v0.3.0/docs/recipes/qwen3.8-flash-next.md#running-it-on-a-128-gb-m5-mac).
 
 ## llama.cpp v0.6.0 + copy mode, warm page cache only (2026-10-06)
 
@@ -227,11 +292,16 @@ corrections made along the way.
   [v0.3.6.3](https://github.com/ashhart/TensorFold/tree/v0.3.6.3) (MIT) are the 8-bit kernels and
   converter, the native C++ pool server, and the opt-in prefetch, seed and expert-pack flags,
   released as [the-shop/TensorFold v0.1.0](https://github.com/the-shop/TensorFold/tree/v0.1.0).
+  [v0.3.0](https://github.com/the-shop/TensorFold/tree/v0.3.0) adds layer-major prefill,
+  page-cache-safe expert reads and expert window reuse, with ideas credited to upstream TensorFold's
+  native engine, [oMLX](https://github.com/jundot/omlx) by jundot and
+  [strata-mlx](https://github.com/yibie/strata-mlx) by yibie (no code copied), and a KV pricing fix
+  ported from ashhart/TensorFold (Apache-2.0); its changelog and notices list each credit.
 
 Which code produced which numbers: the 2026-10-04 tiering study ran on the closed PR #27739 branch
 (`add_qwen4exp` @ `dfa0c0f`), which produced and served the GGUF files; a closed PR is still someone's
 work. The 2026-10-06 llama.cpp figures ran on llama.cpp v0.6.0 plus the copy-mode patch, and the
-2026-10-10 figures on the-shop/TensorFold. Stock upstream llama.cpp at the #27742 merge (`6c84c7d5`)
+2026-10-10 and 2026-10-12 figures on the-shop/TensorFold v0.1.0, v0.2.0 and v0.3.0. Stock upstream llama.cpp at the #27742 merge (`6c84c7d5`)
 loads the Q8_0 with `--no-repack`. Its greedy output matches the #27739 branch byte for byte at
 `-ngl 6` but diverges early at `-ngl 12`/`16` (both deterministic, both coherent), so the two are not
 numerically equivalent, and the 2026-10-04 speed figures apply to the #27739 branch only.
