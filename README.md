@@ -53,9 +53,9 @@ two runs per build:
   by draft acceptance and pool warmth and are not quoted.
 - **Memory:** peak process footprint 87.7 GB on v0.3.0 (highest 5-second sample; the kernel's
   lifetime peak was 87.9 GB, 81.8 GiB) and 87.1 GB on v0.2.0, under the 90.19 GB (84 GiB) budget.
-  After loading, the server's footprint was 73.8 GB. This setup leaves about 40 GB of the 128 GB for
-  everything else, more memory than we aim to give it (60-80 GB); `PRESET=light` below is lighter but
-  was not measured on v0.3.0.
+  After loading, the server's footprint was 73.8 GB. That is above the 60-80 GB we aim for and leaves
+  about 40 GB of the 128 GB for everything else; `PRESET=light` below is lighter but was not measured
+  on v0.3.0.
 - **Page cache:** after the cold prompt, about 25 MB of the expert files stayed in the page cache on
   v0.3.0 and about 18 GB on v0.2.0. About 8.1 GB of the model's other files (not experts) stayed cached
   on v0.3.0.

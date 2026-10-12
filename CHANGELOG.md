@@ -17,8 +17,8 @@
   off, was not measured); next turns on the same warm server 2.9-3.4 s (v0.2.0: 5.3-6.5 s, medians);
   decode flat to +19% on 256-token replies; expert files left in the page cache after a cold prompt
   about 25 MB (v0.2.0: about 18 GB); peak process footprint 87.7 GB sampled, kernel peak 87.9 GB
-  (v0.2.0: 87.1 GB), under the 90.19 GB (84 GiB) budget. That leaves about 40 GB of 128 GB for other
-  work, more than the setup aims to take.
+  (v0.2.0: 87.1 GB), under the 90.19 GB (84 GiB) budget. That is above the 60-80 GB the setup aims
+  for and leaves about 40 GB of 128 GB for other work.
 - The README clones this repository and TensorFold at `v0.3.0`, asks for about 220 GB of free SSD,
   shows a first request, and credits the three Apache-2.0 fixes ported from ashhart/TensorFold
   (`17e6390f`, `e2a9ab01`, `05b25ea5`) and the ideas from oMLX and strata-mlx. The v0.1.0 pool-size

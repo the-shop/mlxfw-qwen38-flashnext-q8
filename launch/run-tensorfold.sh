@@ -9,8 +9,8 @@
 # override either preset, and extra arguments are passed to `tensorfold serve`.
 #
 # Memory: the measured setup peaks at a process footprint of 87.7 GB (sampled; kernel peak 87.9 GB,
-# 81.8 GiB), against 87.1 GB on v0.2.0 and under the 84 GiB (90.19 GB) limit. That leaves about 40 GB
-# of the 128 GB for everything else, which is more than this setup aims to take (60-80 GB). Use
+# 81.8 GiB), against 87.1 GB on v0.2.0 and under the 84 GiB (90.19 GB) limit. That is above the
+# 60-80 GB this setup aims for and leaves about 40 GB of the 128 GB for everything else. Use
 # PRESET=light when other work needs the RAM.
 #
 # v0.3.0, measured 2026-10-12 on an M5 Max against TensorFold v0.2.0, same flags, two runs per build,
