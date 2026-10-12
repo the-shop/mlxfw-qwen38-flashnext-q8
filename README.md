@@ -51,8 +51,11 @@ two runs per build:
 - **Decode:** flat to +19% on the 256-token agent turns (medians 15.0, 23.4 and 22.9 tok/s on v0.3.0
   against 15.0, 19.7 and 21.6 tok/s on v0.2.0). Decode figures on the 32-token replies are dominated
   by draft acceptance and pool warmth and are not quoted.
-- **Memory:** peak process footprint 87.9 GB (81.8 GiB) on v0.3.0 and 87.1 GB on v0.2.0, 2.3 GB under
-  the 90.19 GB (84 GiB) budget. After loading, the server's footprint was 73.8 GB.
+- **Memory:** peak process footprint 87.7 GB on v0.3.0 (highest 5-second sample; the kernel's
+  lifetime peak was 87.9 GB, 81.8 GiB) and 87.1 GB on v0.2.0, under the 90.19 GB (84 GiB) budget.
+  After loading, the server's footprint was 73.8 GB. This setup leaves about 40 GB of the 128 GB for
+  everything else, more memory than we aim to give it (60-80 GB); `PRESET=light` below is lighter but
+  was not measured on v0.3.0.
 - **Page cache:** after the cold prompt, about 25 MB of the expert files stayed in the page cache on
   v0.3.0 and about 18 GB on v0.2.0. About 8.1 GB of the model's other files (not experts) stayed cached
   on v0.3.0.
@@ -69,26 +72,41 @@ two runs per build:
 - **First start:** the host-sync extension is rebuilt (needs Xcode Command Line Tools), and prompt
   snapshots saved by v0.2.0 are not loaded, so a conversation saved by v0.2.0 starts with a cold prefill.
 
-Run it from a fresh clone. You need Xcode Command Line Tools, Python 3.11 or later as `python3`,
-and about 200 GB of free SSD:
+Run it from a fresh clone. You need Xcode Command Line Tools, Python 3.11 or later as `python3`
+(tested with 3.13; 3.14 installs and builds), and about 220 GB of free SSD: 194 GB of weights plus
+prompt and session snapshots, which grow with `--persist-turns`:
 
 ```bash
-git clone https://github.com/the-shop/mlxfw-qwen38-flashnext-q8.git
+git clone -b v0.3.0 https://github.com/the-shop/mlxfw-qwen38-flashnext-q8.git
 git clone -b v0.3.0 https://github.com/the-shop/TensorFold.git && cd TensorFold
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[ssd]" "huggingface_hub>=0.34"
 hf download the-shop/MLXFW-Qwen3.8-Flash-Next-Heretic-MLX-8bit --local-dir ~/mlxfw-q8   # 194 GB
-POOL=60 LIMIT=76 MODEL_DIR=~/mlxfw-q8 ../mlxfw-qwen38-flashnext-q8/launch/run-tensorfold.sh
+MODEL_DIR=~/mlxfw-q8 ../mlxfw-qwen38-flashnext-q8/launch/run-tensorfold.sh
 ```
 
-For the long-prompt setup measured above:
+The launcher's default, `PRESET=measured`, is the setup measured above: `POOL=60 LIMIT=84 CTX=77824`,
+`--parallel 1 --persist-turns --checkpoint-last-user`, thinking on and `TF_PREFILL_LAYER_MAJOR=1`.
+`POOL`, `LIMIT`, `CTX` and `PORT` override it, extra arguments go to `tensorfold serve`, and
+`TF_PREFILL_LAYER_MAJOR=0` turns layer-major prefill off. The first start builds the host-sync
+extension and loads the model, so it takes longer than later starts. Once
+`curl -s 127.0.0.1:8131/health` answers, send a first request:
 
 ```bash
-POOL=60 LIMIT=84 CTX=77824 MODEL_DIR=~/mlxfw-q8 ../mlxfw-qwen38-flashnext-q8/launch/run-tensorfold.sh \
-  --parallel 1 --persist-turns --checkpoint-last-user
+curl -s 127.0.0.1:8131/v1/chat/completions -H 'Content-Type: application/json' \
+  -d '{"model": "mlxfw-q8", "messages": [{"role": "user", "content": "Say hello."}], "max_tokens": 256}'
 ```
 
-`TF_PREFILL_LAYER_MAJOR=0` turns layer-major prefill off.
+Thinking is on by default; add `"chat_template_kwargs": {"enable_thinking": false}` to a request to
+turn it off for that request.
+
+A lighter launch, the v0.1.0 settings (`LIMIT=76 CTX=16384 --no-thinking`; with `POOL=40 LIMIT=56` it
+leaves about 75 GiB free), is kept as a preset. It was not measured on v0.3.0:
+
+```bash
+PRESET=light MODEL_DIR=~/mlxfw-q8 ../mlxfw-qwen38-flashnext-q8/launch/run-tensorfold.sh
+PRESET=light POOL=40 LIMIT=56 MODEL_DIR=~/mlxfw-q8 ../mlxfw-qwen38-flashnext-q8/launch/run-tensorfold.sh
+```
 
 ## TensorFold v0.1.0 with an SSD expert pool: pool sizes (2026-10-10)
 
@@ -101,12 +119,12 @@ ones in use, so this path doesn't depend on the page cache. It needs an M5 Mac w
 |---|---|---|---|---|---|---|
 | 40 / 56 (light) | native (default) | 18.8-22.0 tok/s | 25.0 tok/s | 198-263 tok/s | 52 GiB | 90% |
 | 40 / 56 | Python loop | 16.9-20.0 tok/s | 23.4 tok/s | 183-244 tok/s | 52 GiB | 90% |
-| **60 / 76 (recommended)** | **native (default)** | **23.0-27.2 tok/s** | **58.8 tok/s** | **190-255 tok/s** | **72 GiB** | **98%** |
+| **60 / 76 (recommended on v0.1.0)** | **native (default)** | **23.0-27.2 tok/s** | **58.8 tok/s** | **190-255 tok/s** | **72 GiB** | **98%** |
 | 60 / 76 | Python loop | 20.7-24.9 tok/s | 59.5 tok/s | 176-240 tok/s | 72 GiB | 98% |
 | 70 / 86 | native (default) | 22.5-28.6 tok/s | 60.0 tok/s | 172-217 tok/s | 82 GiB | 98% |
 | 70 / 86 | Python loop | 22.0-27.1 tok/s | 58.1 tok/s | 160-195 tok/s | 82 GiB | 98% |
 
-- **Which pool:** 60 GiB with `LIMIT=76` if you can give the server about 75 GiB. 40 GiB with
+- **Which pool (on v0.1.0):** 60 GiB with `LIMIT=76` if you can give the server about 75 GiB. 40 GiB with
   `LIMIT=56` leaves about 75 GiB free for other work. On new prompts 60 GiB is 22-24% faster than
   40 GiB. 70 GiB (native): decode -2% (harness B) / +5% (harness A) vs 60 GiB, prefill 9-15% lower, and it needs 10 GiB more.
 - **Reruns:** at 60 and 70 GiB a whole reply's experts stay resident, so a repeat of the same prompt
@@ -133,8 +151,9 @@ ones in use, so this path doesn't depend on the page cache. It needs an M5 Mac w
   harness A runs 2-5. Prefill ranges are harness B (2,475-token prompt) to harness A (3,381-token
   prompt).
 
-These figures were measured on v0.1.0, with 16K context and short prompts; the run commands in the
-section above apply. Use `POOL=40 LIMIT=56` to leave more RAM free. The first start builds the host-sync extension with
+These figures were measured on v0.1.0, with 16K context and short prompts, and are not the
+v0.3.0 defaults; `PRESET=light` in the section above starts these settings (`PRESET=light POOL=40
+LIMIT=56` to leave more RAM free). The first start builds the host-sync extension with
 cmake and nanobind. The server listens on `127.0.0.1:8131`; `curl -s 127.0.0.1:8131/health` shows
 `"native": 1` under `experts` when the native pool server is in use. A larger `LIMIT` buys context:
 with a 40 GiB pool, `LIMIT=62` starts and serves `CTX=65536`.
@@ -294,9 +313,11 @@ corrections made along the way.
   released as [the-shop/TensorFold v0.1.0](https://github.com/the-shop/TensorFold/tree/v0.1.0).
   [v0.3.0](https://github.com/the-shop/TensorFold/tree/v0.3.0) adds layer-major prefill,
   page-cache-safe expert reads and expert window reuse, with ideas credited to upstream TensorFold's
-  native engine, [oMLX](https://github.com/jundot/omlx) by jundot and
-  [strata-mlx](https://github.com/yibie/strata-mlx) by yibie (no code copied), and a KV pricing fix
-  ported from ashhart/TensorFold (Apache-2.0); its changelog and notices list each credit.
+  native engine, [oMLX](https://github.com/jundot/omlx) by jundot (Apache-2.0) and
+  [strata-mlx](https://github.com/yibie/strata-mlx) by yibie (MIT), with no code copied from either.
+  The fork is MIT with Apache-2.0 portions: three fixes are ported from ashhart/TensorFold after its
+  Apache-2.0 relicense (indexer pricing, upstream `17e6390f`; refusing checkpoint captures, `e2a9ab01`;
+  stale partial snapshot cleanup, `05b25ea5`). Its changelog and notices list each credit.
 
 Which code produced which numbers: the 2026-10-04 tiering study ran on the closed PR #27739 branch
 (`add_qwen4exp` @ `dfa0c0f`), which produced and served the GGUF files; a closed PR is still someone's

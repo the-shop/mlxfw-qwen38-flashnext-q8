@@ -4,7 +4,7 @@ These rules apply to anyone, human or tool, changing this repository. `AGENTS.md
 
 ## Releases
 
-- A release is an annotated git tag `vMAJOR.MINOR.PATCH` on `main` (current release: `v0.1.0`).
+- A release is an annotated git tag `vMAJOR.MINOR.PATCH` on `main` (current release: `v0.3.0`).
 - Every release has an entry in `CHANGELOG.md`, committed before the tag is created.
 - Never force-push `main`. Never move or delete a published tag; fix mistakes with a new release.
 

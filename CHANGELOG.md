@@ -1,21 +1,28 @@
 # Changelog
 
-## v0.3.0 — unreleased
+## v0.3.0 (2026-10-12)
 
 - The recommended path moves to the-shop/TensorFold v0.3.0 (layer-major prefill, page-cache-safe
   expert reads, expert window reuse). v0.2.0 was not released from this repository.
 - `launch/run-tensorfold.sh` sets `TF_PREFILL_LAYER_MAJOR=1` unless it is already set, and passes
   extra arguments to `tensorfold serve`.
+- `launch/run-tensorfold.sh` defaults to the measured v0.3.0 setup (`PRESET=measured`): `POOL=60
+  LIMIT=84 CTX=77824`, `--parallel 1 --persist-turns --checkpoint-last-user`, thinking on (no
+  `--no-thinking`). `PRESET=light` starts the v0.1.0 launch (`LIMIT=76 CTX=16384 --no-thinking`), which
+  was not measured on v0.3.0. `POOL`, `LIMIT`, `CTX` and `PORT` still override either preset.
 - Measured 2026-10-12 on an M5 Max 128 GB against TensorFold v0.2.0 with the same flags
   (`POOL=60 LIMIT=84 CTX=77824`, `--parallel 1 --persist-turns --checkpoint-last-user`), two runs per
   build, identical output tokens on both builds for all 32 replies: a cold 24,015-token prompt reaches its first token
   in 33-39 s with `TF_PREFILL_LAYER_MAJOR=1` (v0.2.0: 292-323 s; TensorFold's default, layer-major
   off, was not measured); next turns on the same warm server 2.9-3.4 s (v0.2.0: 5.3-6.5 s, medians);
   decode flat to +19% on 256-token replies; expert files left in the page cache after a cold prompt
-  about 25 MB (v0.2.0: about 18 GB); peak process footprint 87.9 GB (v0.2.0: 87.1 GB), 2.3 GB under
-  the 90.19 GB (84 GiB) budget.
-- The README install command pins TensorFold v0.3.0; the v0.1.0 pool-size table stays, labelled
-  with the version it was measured on.
+  about 25 MB (v0.2.0: about 18 GB); peak process footprint 87.7 GB sampled, kernel peak 87.9 GB
+  (v0.2.0: 87.1 GB), under the 90.19 GB (84 GiB) budget. That leaves about 40 GB of 128 GB for other
+  work, more than the setup aims to take.
+- The README clones this repository and TensorFold at `v0.3.0`, asks for about 220 GB of free SSD,
+  shows a first request, and credits the three Apache-2.0 fixes ported from ashhart/TensorFold
+  (`17e6390f`, `e2a9ab01`, `05b25ea5`) and the ideas from oMLX and strata-mlx. The v0.1.0 pool-size
+  table stays, labelled with the version it was measured on.
 
 ## v0.1.0 — 2026-10-10
 
