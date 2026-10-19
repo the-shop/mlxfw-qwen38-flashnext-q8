@@ -16,7 +16,7 @@ GPU/CPU tiering study on the closed llama.cpp PR #27739 branch (2026-10-04).
 
 ## Recommended: TensorFold v0.3.0, long prompts (2026-10-12)
 
-**Update 2026-10-18:** install [TensorFold v0.3.1](https://github.com/the-shop/TensorFold/releases/tag/v0.3.1).
+**Update 2026-10-18:** install [TensorFold v0.3.2](https://github.com/the-shop/TensorFold/releases/tag/v0.3.2) (v0.3.1 plus reply metadata for thinking and ignored sampling fields).
 It produces the same output tokens as v0.3.0 (all seven reference token hashes of the long-prompt check
 below match) and removes the opt-in decode prefetch, prompt seeding, expert pack and n-gram row cache,
 which measured no gain. The figures in this section were measured on v0.3.0.
@@ -83,7 +83,7 @@ prompt and session snapshots, which grow with `--persist-turns`:
 
 ```bash
 git clone -b v0.3.0 https://github.com/the-shop/mlxfw-qwen38-flashnext-q8.git
-git clone -b v0.3.1 https://github.com/the-shop/TensorFold.git && cd TensorFold
+git clone -b v0.3.2 https://github.com/the-shop/TensorFold.git && cd TensorFold
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[ssd]" "huggingface_hub>=0.34"
 hf download the-shop/MLXFW-Qwen3.8-Flash-Next-Heretic-MLX-8bit --local-dir ~/mlxfw-q8   # 194 GB
@@ -168,7 +168,7 @@ from the TensorFold checkout with
 `python tools/convert_flash_next_q8.py <BF16 dir> flashnext-q8 --limit-gb 14`. To start from the
 original, non-decensored model, download `Qwen/Qwen3.8-Flash-Next` as the BF16 source. The full
 recipe covers context and memory trade-offs, and the token-identity check for drafting:
-[`docs/recipes/qwen3.8-flash-next.md`](https://github.com/the-shop/TensorFold/blob/v0.3.1/docs/recipes/qwen3.8-flash-next.md#running-it-on-a-128-gb-m5-mac).
+[`docs/recipes/qwen3.8-flash-next.md`](https://github.com/the-shop/TensorFold/blob/v0.3.2/docs/recipes/qwen3.8-flash-next.md#running-it-on-a-128-gb-m5-mac).
 
 ## llama.cpp v0.6.0 + copy mode, warm page cache only (2026-10-06)
 
